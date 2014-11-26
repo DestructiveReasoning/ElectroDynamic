@@ -27,34 +27,40 @@ Entity::Entity(const GLuint _model, int _texture, Vector3 pos, Vector3 vel, Vect
 void Entity::Update()
 {
 	//glLoadIdentity();
-	if(!mobile) return;
+	
 
 	acceleration = fnet = Vector3(0,0,0);
 	for(int c = 0; c < forces.size(); c++)
 	{
 		fnet += forces[c];
 	}
-
+	if(!mobile) return;
 	acceleration = fnet/mass;
 	velocity += acceleration;
 	position += velocity;
+
+	fnet = fnet/_animationspeed;
 
 	forces.clear();
 }
 
 void Entity::Render(bool wireframe)
 {
+	//customUpdate();
 	if(wireframe)
 	{
 		glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 	}
 
-	glTranslatef(0,0,_zdefault);
+	/*Rotate Scene*/
+	glTranslatef(cameraPos->getX(),cameraPos->getY(),cameraPos->getZ() + _zdefault);
 	glRotatef(xangle,1,0,0);
 	glRotatef(yangle,0,1,0);
 	glRotatef(zangle,0,0,1);
-	glTranslatef(position.getX() + cameraPos->getX(),position.getY() + cameraPos->getY(),position.getZ() + cameraPos->getZ() - _zdefault);
-	//glRotatef(angle,1.0f,1.0f,1.0f);
+
+	/*Display Particle*/
+	glTranslatef(position.getX(),position.getY(),position.getZ() - _zdefault);
+
 	if(texture != -1) glBindTexture(GL_TEXTURE_2D,texture);
 	glCallList(model);
 	glLoadIdentity();

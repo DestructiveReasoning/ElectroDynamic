@@ -16,6 +16,7 @@ public:
 
 	virtual void Update();
 	virtual void Render(bool wireframe);
+	virtual void customUpdate() {};
 
 	void setPosition(Vector3 pos);
 	void setVelocity(Vector3 vel);

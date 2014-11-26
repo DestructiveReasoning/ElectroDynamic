@@ -3,10 +3,26 @@
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "glu32.lib")
 
+/*
+Copyright (c) 2014 Harley Wiltzer
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), 
+	to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+	and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
+	IN THE SOFTWARE.
+*/
+
 #include "SDL.h"
 //#include <gl/GL.h>
 //#include <gl/GLU.h>
 #include "SDL_opengl.h"
+#undef main
 //#include "SDL_opengles.h"
 //#include "SDL_opengles2.h"
 #include <Windows.h>
@@ -24,10 +40,14 @@
 
 /*ANIMATION SETTINGS*/
 #define _zdefault -12.0f
-#define _animationspeed 1/100000
+#define _animspeed 1/100000
+#define _animationspeed _animspeed
 #define _cameraSpeed 0.25f
 #define _rotationSpeed 0.5f;
 //#define _animationspeed 10
+
+#define _maxDraggingLength 2000
+#define _dragSpeed 0.01
 
 /* KEY BINDINGS */
 #define Space	SDLK_SPACE
@@ -74,6 +94,7 @@
 #define _Delete		SDL_SCANCODE_DELETE
 #define _Backspace	SDL_SCANCODE_BACKSPACE
 #define _F1			SDL_SCANCODE_F1
+#define _0			SDL_SCANCODE_0
 
 #define Select			Esc
 #define PanLeft			LArrow
@@ -105,6 +126,7 @@
 #define _Attributes		_P
 #define _FieldForward	_Space
 #define _FieldBackward	_Backspace
+#define _SwitchSign		_0
 
 #define _buttonspeed 300
 

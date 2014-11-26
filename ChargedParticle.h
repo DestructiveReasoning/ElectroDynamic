@@ -12,7 +12,10 @@ public:
 	~ChargedParticle(void);
 
 	inline float getCharge(void) { return charge; };
+	inline void reverseCharge(void) { charge *= -1; customUpdate(); };
 	inline bool  isMobile(void) { return mobile; };
+
+	virtual void customUpdate();
 
 	static void drawArrow(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, bool);
 
@@ -26,8 +29,17 @@ namespace ElectroDynamic
 	static GLuint proton;
 	static GLuint electron;
 	static GLuint arrow;
+	static GLuint plane;
+	static GLuint addParticleTexture;
 	static GLuint arrowTexture;
 	static GLuint arrowTextureSelected;
+	static GLuint redtexture;
+	static GLuint yellowtexture;
+
+	static Vector3 tempVector;
+	static float tempCharge;
+	static float tempMass;
+	static bool tempFixed;
 
 	static int index = 0;
 	static int fieldIndex = 0;
@@ -85,11 +97,11 @@ namespace ElectroDynamic
 		void Render(Vector3 cameraPos, bool selected)
 		{
 			//glScalef(field.length() * ArrowLength,1.0,1.0);
-			glTranslatef(0,0,_zdefault);
+			glTranslatef(cameraPos.getX(),cameraPos.getY(),cameraPos.getZ() + _zdefault);
 			glRotatef(Entity::yangle,0,1,0);
 			//glRotatef(1.0,field.getX(),field.getY(),field.getZ());
 
-			glTranslatef(pos.getX() + cameraPos.getX(), pos.getY() + cameraPos.getY(), pos.getZ() + cameraPos.getZ() - _zdefault);
+			glTranslatef(pos.getX(), pos.getY(), pos.getZ() - _zdefault);
 			//glRotatef(atan2(field.getZ(),field.getY()) * 180/M_PI, 1.0,0.0,0.0);
 			//glRotatef(atan2(field.getX(),field.getZ()) * 180/M_PI, 0.0,1.0,0.0);
 			//glRotatef(atan2(field.getY(),field.getX()) * 180/M_PI, 0.0,0.0,1.0);

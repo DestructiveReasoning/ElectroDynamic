@@ -17,17 +17,19 @@ float Vector3::dot(const Vector3& vec)
 
 void Vector3::normalize()
 {
-	x/=length();
-	y/=length();
-	z/=length();
+	float norm = length();
+	x/=norm;
+	y/=norm;
+	z/=norm;
 }
 
 Vector3& Vector3::normalized()
 {
 	float X,Y,Z;
-	X = x / length();
-	Y = y / length();
-	Z = z / length();
+	float norm = length();
+	X = x / norm;
+	Y = y / norm;
+	Z = z / norm;
 	return Vector3(X,Y,Z);
 }
 
@@ -47,5 +49,5 @@ void Vector3::set(float _x, float _y, float _z)
 
 void Vector3::print()
 {
-	printf("[%.3f, %.3f, %.3f]\n", x, y, z);
+	printf("[%.3e, %.3e, %.3e]\n", x, y, z);
 }

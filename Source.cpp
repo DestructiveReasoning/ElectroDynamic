@@ -1,6 +1,9 @@
 #include "destructive_reasoning.h"
-#include "Entity.h"
 #include "ChargedParticle.h"
+#include "Wnd32.h"
+#include "AddParticleWindow.h"
+#include "AddFieldWindow.h"
+#include "TimedSplashScreen.h"
 
 #define ASPECT_RATIO (4.0 / 3.0)
 #define WIDTH  1024.0
@@ -149,15 +152,18 @@ int redtexture, greentexture, graytexture, granitetexture, yellowtexture;
 int cubeModel;
 int retardedHornedMonkey;
 int wiltzLogo;
-bool select = false;
+bool select = true;
 bool command = false;
 Entity *logo;
 ChargedParticle *protonEntity;
 ChargedParticle *protonEntity2;
 ChargedParticle *electronEntity;
 ChargedParticle *electronEntity2;
+Entity *addParticlePlane;
+ChargedParticle* p = nullptr;
 Uint32 lastButtonTime = 0;
 std::vector<ChargedParticle *> deletedParticles;
+SDL_Renderer *renderer;
 
 void init()
 {
@@ -169,11 +175,15 @@ void init()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
 	//blueCheckerTexture = loadTexture("CheckerboardBlue.bmp");
-	redtexture = loadTexture("RedTexture.bmp");
+	ElectroDynamic::redtexture = loadTexture("RedTexture.bmp");
+	redtexture = ElectroDynamic::redtexture;
 	greentexture = loadTexture("GreenTexture.bmp");
 	graytexture = loadTexture("GrayTexture.bmp");
 	granitetexture = loadTexture("GraniteTexture.bmp");
-	yellowtexture = loadTexture("YellowTexture.bmp");
+	ElectroDynamic::yellowtexture = loadTexture("YellowTexture.bmp");
+	yellowtexture = ElectroDynamic::yellowtexture;
+	printf("Electro: %d\tSource: %d\n", ElectroDynamic::yellowtexture, redtexture);
+	ElectroDynamic::addParticleTexture = loadTexture("AddParticleLabel.bmp");
 	ElectroDynamic::arrowTexture = graytexture;
 	ElectroDynamic::arrowTextureSelected = yellowtexture;
 	glEnable(GL_LIGHTING);
@@ -324,6 +334,7 @@ void display()
 			(c == ElectroDynamic::fieldIndex) ? glBindTexture(GL_TEXTURE_2D,ElectroDynamic::arrowTextureSelected) : glBindTexture(GL_TEXTURE_2D,ElectroDynamic::arrowTexture);
 			(c == ElectroDynamic::fieldIndex) ? ElectroDynamic::fields[c]->Render(cameraPos,true) : ElectroDynamic::fields[c]->Render(cameraPos,false);
 		}
+		//addParticlePlane->Render(false);
 	}
 }
 
@@ -405,6 +416,12 @@ void handleInput2(SDL_Event *mainEvent)
 				(index > 0) ? index-- : index = 0;
 			}
 			return;
+		}
+
+		if(state[_0] && SDL_GetTicks() - lastButtonTime > _buttonspeed)		
+		{
+			particles[index]->reverseCharge();
+			lastButtonTime = SDL_GetTicks();
 		}
 
 		if(state[_PanLeft])		cameraPos.increment(_cameraSpeed,1.0,0.0,0.0);
@@ -495,12 +512,16 @@ void handleInput2(SDL_Event *mainEvent)
 		if(state[_Attributes] && SDL_GetTicks() - lastButtonTime > _buttonspeed)
 		{
 			Divider;
+			printf("Current Particle Charge: ");
+			printf("%.3e\n", particles[index]->getCharge());
 			printf("Current Particle Position: ");
 			particles[index]->getPosition().print();
 			printf("Current Particle Velocity: ");
 			(particles[index]->isMobile()) ? particles[index]->getVelocity().print() : printf("0 - Fixed Particle\n");
 			printf("Current Particle Acceleration: ");
 			(particles[index]->isMobile()) ? particles[index]->getAcceleration().print() : printf("0 - Fixed Particle\n");
+			printf("Force exerted on particle: ");
+			particles[index]->getFnet().print();
 			Divider;
 			lastButtonTime = SDL_GetTicks();
 		}
@@ -521,25 +542,73 @@ void handleInput2(SDL_Event *mainEvent)
 		}
 	}
 
+	if(mainEvent->type == SDL_MOUSEBUTTONDOWN)
+	{
+		if(SDL_GetMouseState(NULL,NULL)&SDL_BUTTON(1))
+		{
+			AddParticleWindow *wnd = new AddParticleWindow(300,500,"Add Particle","APW",&cameraPos);
+			delete wnd;
+			ElectroDynamic::particles.push_back(new ChargedParticle(ElectroDynamic::electron,
+																	redtexture,
+																	AddParticleWindow::tempVector,
+																	AddParticleWindow::Mass,
+																	AddParticleWindow::Charge,
+																	AddParticleWindow::Fixed,
+																	&cameraPos));
+		}
+		if(SDL_GetMouseState(NULL,NULL)&SDL_BUTTON(3))
+		{
+			AddFieldWindow *wnd = new AddFieldWindow(300,400,"Add Field Sensor","AFS",&cameraPos);
+			delete wnd;
+			ElectroDynamic::fields.push_back(new ElectroDynamic::FieldSensor(AddFieldWindow::tempVector,Vector3(0,0,0)));
+		}
+	}
+
 	if(mainEvent->type == SDL_MOUSEMOTION)
 	{
 		/*
 			If motion.xrel or motion.yrel are 1, the mouse isn't moving.
 		*/
-
+		bool dragging = false;
+		int mouseX, mouseY;
 		/*LEFT MOUSE BUTTON*/
-		if(SDL_GetMouseState(NULL,NULL)&SDL_BUTTON(1))
+		if(SDL_GetMouseState(&mouseX,&mouseY)&SDL_BUTTON(2))
 		{
-			//if(abs(mainEvent->motion.xrel > 0)) yangle -= mainEvent->motion.yrel * _rotationSpeed;
-			//if(abs(mainEvent->motion.yrel > 0)) xangle -= mainEvent->motion.yrel * _rotationSpeed; 
+			//printf("Dragging\n");
+			float minLength = 1000000000;
+			Vector3 mousePos = Vector3((float) mouseX - cameraPos.getX() - WIDTH/2, (float) mouseY - cameraPos.getY() - HEIGHT/2, -cameraPos.getZ() + _zdefault);
+			for(int c = 0; c < ElectroDynamic::particles.size(); c++)
+			{
+				if(mousePos.distanceFrom(ElectroDynamic::particles[c]->getPosition()) <= minLength) 
+				{
+					minLength = mousePos.distanceFrom(ElectroDynamic::particles[c]->getPosition() + cameraPos);
+					if(!dragging)
+					{
+						p = ElectroDynamic::particles[ElectroDynamic::index];
+						dragging = true;
+					}
+				}
+			}
+			if(minLength > _maxDraggingLength) dragging = false;
+			else
+			{
+				mousePos.print();
+				if(select) p->getPositionByReference()->increment(_dragSpeed,mainEvent->motion.xrel,-mainEvent->motion.yrel,0);
+			}
+		}else
+		{
+			dragging = false;
+			//printf("Not Dragging\n");
 		}
 	}
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
 	SDL_Init(SDL_INIT_EVERYTHING);
+	TimedSplashScreen splash = TimedSplashScreen(640,480,5000,"PoweredByDestructiveReasoning.bmp");
 	SDL_Window* screen = SDL_CreateWindow("Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_OPENGL);
+	renderer = SDL_CreateRenderer(screen,-1,SDL_RENDERER_ACCELERATED);
 	SDL_GL_CreateContext(screen);
 	bool running = true;
 	Uint32 start;
@@ -550,15 +619,24 @@ int main(int argc, char** argv)
 	logo = new Entity(wiltzLogo,graytexture,Vector3(0,0,_zdefault),Vector3(0,0,0),Vector3(0,0,0),&cameraPos);
 	printf("%d\n",logo->getModel());
 
-	ElectroDynamic::proton = loadObject("sphere0500.obj");
+	//ElectroDynamic::proton = loadObject("sphere0500.obj");
+	ElectroDynamic::proton = loadObject("sphere0250.obj");
 	ElectroDynamic::electron = loadObject("sphere0250.obj");
 	ElectroDynamic::arrow = loadObject("arrow.obj");
+	ElectroDynamic::plane = loadObject("Plane.obj");
 
 	protonEntity = new ChargedParticle(ElectroDynamic::proton,yellowtexture,Vector3(1,0,_zdefault),1000.0f,1.602 * pow(10,-3), false, &cameraPos);
-	protonEntity2 = new ChargedParticle(ElectroDynamic::proton,greentexture,Vector3(-1,0,_zdefault),1000.0f,1.602 * pow(10,-3),false, &cameraPos);
+	protonEntity2 = new ChargedParticle(ElectroDynamic::proton,yellowtexture,Vector3(-1,0,_zdefault),1000.0f,1.602 * pow(10,-3),false, &cameraPos);
+
+	addParticlePlane = new Entity(ElectroDynamic::plane,ElectroDynamic::addParticleTexture,Vector3(0,0,_zdefault),Vector3(0,0,0),Vector3(0,0,0),new Vector3(0,0,0));
 
 	ElectroDynamic::particles.push_back(protonEntity);
 	ElectroDynamic::particles.push_back(protonEntity2);
+
+	Vector3 v = Vector3(2,2,2);
+	v.print();
+	v.normalize();
+	v.print();
 
 	while(running)
 	{
@@ -610,12 +688,12 @@ int main(int argc, char** argv)
 				printf("Enter the z position of the new point charge: ");
 				std::cin >> ans;
 				try {z = atof(ans.c_str()) + _zdefault;} catch(...) {printf("Invalid Entry\n"); continue;}
-				printf("Enter the mass of the new point charge (Should be between 0.25 and 10000): ");
+				printf("Enter the mass of the new point charge in kg (Between 0.25 and 100 for best animation): ");
 				std::cin >> ans;
 				mass = atof(ans.c_str());
-				printf("Enter the charge of the new point charge in mC: ");
+				printf("Enter the charge of the new point charge in nC: ");
 				std::cin >> ans;
-				try {charge = atof(ans.c_str()) / 1000;} catch(...) {printf("Invalid Entry\n"); continue;}
+				try {charge = atof(ans.c_str()) / 1000000000;} catch(...) {printf("Invalid Entry\n"); continue;}
 				ans.clear();
 				while(ans != "y" && ans != "Y" && ans != "n" && ans != "N")
 				{
@@ -681,13 +759,26 @@ int main(int argc, char** argv)
 				try {z = atof(ans.c_str()) + _zdefault;} catch(...) {Invalid; continue;}
 				ans.clear();
 				ElectroDynamic::fields.push_back(new ElectroDynamic::FieldSensor(Vector3(x,y,z), Vector3(0,0,0)));
+			}else if(ans == "deletefield")
+			{
+				if(ElectroDynamic::fields.size() > 0)
+				{
+					ElectroDynamic::fields.erase(ElectroDynamic::fields.begin() + ElectroDynamic::fieldIndex);
+					(ElectroDynamic::fieldIndex - 1 > 0) ? ElectroDynamic::fieldIndex-- : ElectroDynamic::fieldIndex = 0;
+				}
+			}else if(ans == "popfield")
+			{
+				if(ElectroDynamic::fields.size() > 0) ElectroDynamic::fields.pop_back();
+				(ElectroDynamic::fieldIndex - 1 > 0) ? ElectroDynamic::fieldIndex-- : ElectroDynamic::fieldIndex = 0;
 			}else
 			{
 				printf("Please enter one of the following commands:\n");
-				printf("add\t\tAdd a new particle to the scene\n");
-				printf("pop\t\tRemove the last added particle from the scene\n");
-				printf("move\t\tChange the position of the current particle\n");
-				printf("addfield\tAdd a new electric field sensor\n");
+				printf("add\t\tAdd a new particle to the scene\n");					/*Alternative: Click button, GUI*/
+				printf("pop\t\tRemove the last added particle from the scene\n");	/*Alternative: None*/
+				printf("move\t\tChange the position of the current particle\n");	/*Alternative: Click and drag*/
+				printf("addfield\tAdd a new electric field sensor\n");				/*Alternative: Click button, GUI*/
+				printf("deletefield\tDelete selected electric field sensor\n");		/*Alternative: None*/
+				printf("popfield\tRemove last added electric field sensor\n");		/*Alternative: None*/
 				printf("keys\t\tView the keybindings\n");
 				printf("exit\t\tExit Command Mode\n");
 			}

@@ -8,6 +8,11 @@ ChargedParticle::ChargedParticle(int model, int texture, Vector3 pos, float _mas
 	mass = _mass;
 }
 
+void ChargedParticle::customUpdate()
+{
+	(charge < 0) ? texture = 1 : texture = 5;
+}
+
 void ChargedParticle::drawArrow(GLdouble x1,GLdouble y1,GLdouble z1,GLdouble x2,GLdouble y2,GLdouble z2,GLdouble D, bool selected)
 {
 	double dx=x2-x1; //X length of arrow vector
